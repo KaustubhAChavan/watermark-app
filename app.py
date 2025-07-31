@@ -169,42 +169,109 @@ class WatermarkProcessor:
             logger.error(f"Error watermarking image {input_path}: {e}")
             raise
     
+    def escape_text_for_ffmpeg(self, text):
+        """Properly escape text for FFmpeg drawtext filter."""
+        # Replace newlines with literal \n for FFmpeg
+        escaped_text = text.replace('\n', '\\n')
+        
+        # Escape colons which are parameter separators in FFmpeg
+        escaped_text = escaped_text.replace(':', '\\:')
+        
+        # Escape other special characters that might cause issues
+        escaped_text = escaped_text.replace("'", "\\'")
+        escaped_text = escaped_text.replace('"', '\\"')
+        escaped_text = escaped_text.replace('=', '\\=')
+        escaped_text = escaped_text.replace('[', '\\[')
+        escaped_text = escaped_text.replace(']', '\\]')
+        
+        return escaped_text
+    
     def add_watermark_to_video(self, input_path, output_path):
         """Add watermark to a video file using FFmpeg."""
         try:
             # Prepare watermark text for FFmpeg
             watermark_config = self.config['watermark']
-            text = watermark_config['text'].replace('\n', '\\n')
+            raw_text = watermark_config['text']
             font_size = watermark_config['font_size']
             margin = watermark_config['margin']
             
-            # FFmpeg command to add text watermark
-            cmd = [
-                'ffmpeg',
-                '-i', str(input_path),
-                '-vf', f"drawtext=text='{text}':fontsize={font_size}:fontcolor=white@0.8:x=w-tw-{margin}:y=h-th-{margin}:box=1:boxcolor=black@0.5:boxborderw=10",
-                '-c:a', 'copy',  # Copy audio without re-encoding
-                '-y',  # Overwrite output file
-                str(output_path)
+            # Try multiple escape strategies for maximum compatibility
+            escape_strategies = [
+                {
+                    'name': 'Standard escaping',
+                    'text': self.escape_text_for_ffmpeg(raw_text)
+                },
+                {
+                    'name': 'Simple escaping (fallback)',
+                    'text': raw_text.replace('\n', '\\\\n').replace(':', '\\:')
+                },
+                {
+                    'name': 'Basic replacement (last resort)',
+                    'text': raw_text.replace('\n', ' | ').replace(':', ' ')
+                }
             ]
             
-            # Run FFmpeg
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300  # 5 minute timeout
-            )
+            last_error = None
+            for strategy in escape_strategies:
+                try:
+                    escaped_text = strategy['text']
+                    logger.info(f"Trying watermark strategy: {strategy['name']}")
+                    logger.debug(f"Escaped text: {repr(escaped_text)}")
+                    
+                    # Build FFmpeg command
+                    # Use a more robust filter string construction
+                    filter_parts = [
+                        f"text={escaped_text}",
+                        f"fontsize={font_size}",
+                        "fontcolor=white@0.8",
+                        f"x=w-tw-{margin}",
+                        f"y=h-th-{margin}",
+                        "box=1",
+                        "boxcolor=black@0.5",
+                        "boxborderw=10"
+                    ]
+                    filter_string = "drawtext=" + ":".join(filter_parts)
+                    
+                    cmd = [
+                        'ffmpeg',
+                        '-i', str(input_path),
+                        '-vf', filter_string,
+                        '-c:a', 'copy',  # Copy audio without re-encoding
+                        '-y',  # Overwrite output file
+                        str(output_path)
+                    ]
+                    
+                    logger.debug(f"FFmpeg command: {' '.join(cmd)}")
+                    
+                    # Run FFmpeg
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=300  # 5 minute timeout
+                    )
+                    
+                    if result.returncode == 0:
+                        logger.info(f"Successfully watermarked video using {strategy['name']}: {input_path} -> {output_path}")
+                        return
+                    else:
+                        last_error = result.stderr
+                        logger.warning(f"Strategy '{strategy['name']}' failed: {result.stderr}")
+                        continue
+                        
+                except subprocess.TimeoutExpired as e:
+                    last_error = f"Timeout with strategy '{strategy['name']}'"
+                    logger.warning(last_error)
+                    continue
+                except Exception as e:
+                    last_error = f"Exception with strategy '{strategy['name']}': {e}"
+                    logger.warning(last_error)
+                    continue
             
-            if result.returncode == 0:
-                logger.info(f"Successfully watermarked video: {input_path} -> {output_path}")
-            else:
-                logger.error(f"FFmpeg error: {result.stderr}")
-                raise subprocess.CalledProcessError(result.returncode, cmd)
+            # If all strategies failed, raise the last error
+            logger.error(f"All watermarking strategies failed. Last error: {last_error}")
+            raise subprocess.CalledProcessError(1, "ffmpeg", last_error)
                 
-        except subprocess.TimeoutExpired:
-            logger.error(f"Timeout watermarking video: {input_path}")
-            raise
         except Exception as e:
             logger.error(f"Error watermarking video {input_path}: {e}")
             raise
