@@ -1,0 +1,24 @@
+{
+  "watermark": {
+    "text": "Armstrong Properties\nRavindra Bhubal\ncontact: 7387457889",
+    "position": "bottom-right",
+    "font_size": 24,
+    "font_color": [255, 255, 255],
+    "background_color": [0, 0, 0, 128],
+    "padding": 20,
+    "margin": 30
+  },
+  "supported_formats": {
+    "images": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
+    "videos": [".mp4", ".avi", ".mov", ".webm", ".mkv"]
+  },
+  "folders": {
+    "input": "INPUT",
+    "output": "OUTPUT"
+  },
+  "ffmpeg": {
+    "video_codec": "libx264",
+    "audio_codec": "aac",
+    "preset": "medium"
+  }
+}

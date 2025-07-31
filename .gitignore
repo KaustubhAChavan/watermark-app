@@ -1,0 +1,27 @@
+# Logs
+*.log
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Processing folders - keep structure but not contents
+OUTPUT/*
+!OUTPUT/.gitkeep
+INPUT/*
+!INPUT/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Virtual environments
+venv/
+env/
