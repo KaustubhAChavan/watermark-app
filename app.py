@@ -109,8 +109,9 @@ class WatermarkProcessor:
                 watermark_config = self.config['watermark']
                 text = watermark_config['text']
                 font_size = watermark_config['font_size']
-                font_color = tuple(watermark_config['font_color'] + [255])  # Add alpha
-                bg_color = tuple(watermark_config['background_color'])
+                # Use 70% opacity (179 = 70% of 255)
+                font_color = tuple(watermark_config['font_color'] + [179])
+                bg_color = watermark_config.get('background_color')
                 padding = watermark_config['padding']
                 margin = watermark_config['margin']
                 
@@ -131,23 +132,30 @@ class WatermarkProcessor:
                 text_height = sum(line_heights) + (len(lines) - 1) * 5  # 5px line spacing
                 
                 # Calculate watermark position (bottom-right)
-                watermark_width = text_width + 2 * padding
-                watermark_height = text_height + 2 * padding
+                # Position text directly without background padding
+                x = img.width - text_width - margin
+                y = img.height - text_height - margin
                 
-                x = img.width - watermark_width - margin
-                y = img.height - watermark_height - margin
-                
-                # Draw background rectangle
-                draw.rectangle(
-                    [x, y, x + watermark_width, y + watermark_height],
-                    fill=bg_color
-                )
+                # Draw background rectangle only if background color is specified
+                if bg_color is not None:
+                    watermark_width = text_width + 2 * padding
+                    watermark_height = text_height + 2 * padding
+                    bg_x = img.width - watermark_width - margin
+                    bg_y = img.height - watermark_height - margin
+                    
+                    draw.rectangle(
+                        [bg_x, bg_y, bg_x + watermark_width, bg_y + watermark_height],
+                        fill=tuple(bg_color)
+                    )
+                    # Adjust text position when background is present
+                    x = bg_x + padding
+                    y = bg_y + padding
                 
                 # Draw text lines
-                current_y = y + padding
+                current_y = y
                 for i, line in enumerate(lines):
                     draw.text(
-                        (x + padding, current_y),
+                        (x, current_y),
                         line,
                         fill=font_color,
                         font=font
@@ -223,12 +231,9 @@ class WatermarkProcessor:
                     filter_parts = [
                         f"text={escaped_text}",
                         f"fontsize={font_size}",
-                        "fontcolor=white@0.8",
+                        "fontcolor=black@0.7",
                         f"x=w-tw-{margin}",
-                        f"y=h-th-{margin}",
-                        "box=1",
-                        "boxcolor=black@0.5",
-                        "boxborderw=10"
+                        f"y=h-th-{margin}"
                     ]
                     filter_string = "drawtext=" + ":".join(filter_parts)
                     
