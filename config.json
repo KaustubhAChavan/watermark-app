@@ -1,10 +1,10 @@
 {
   "watermark": {
-    "text": "Armstrong Properties\nRavindra Bhubal\ncontact: 7387457889",
+    "text": "Shapoorji VANAHA\nContact : 7387457889",
     "position": "bottom-right",
     "font_size": 24,
-    "font_color": [255, 255, 255],
-    "background_color": [0, 0, 0, 128],
+    "font_color": [0, 0, 0],
+    "background_color": null,
     "padding": 20,
     "margin": 30
   },
